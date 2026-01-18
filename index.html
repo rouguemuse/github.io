@@ -1,11 +1,582 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
+
 <head>
     <meta charset="UTF-8">
-    <title>Rogue Muse</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CFA | Conversational Forensic Auditor</title>
+    <link rel="stylesheet" href="auditor.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&family=JetBrains+Mono:wght@400;700&display=swap"
+        rel="stylesheet">
 </head>
+
 <body>
-    <h1>Rougue Muse</h1>
-    <p>Coming Soon...</p>
+
+    <div id="app-container">
+        <!-- Sidebar: Navigation & Sources -->
+        <aside id="sidebar">
+            <div class="brand-header">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="2.5">
+                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+                    <line x1="12" y1="7" x2="12" y2="13"></line>
+                    <line x1="9" y1="10" x2="15" y2="10"></line>
+                </svg>
+                <div class="logo-text">Audit<span style="color:var(--primary)">CFA</span></div>
+            </div>
+
+            <div class="nav-section">
+                <h4>Data Operations</h4>
+                <button class="tool-btn" onclick="document.getElementById('file-input').click()">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                        <polyline points="17 8 12 3 7 8"></polyline>
+                        <line x1="12" y1="3" x2="12" y2="15"></line>
+                    </svg>
+                    Import Conversation History
+                </button>
+                <input type="file" id="file-input" style="display: none;" onchange="handleFileUpload(event)">
+                <button class="tool-btn" onclick="exportInsights()">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
+                        <polyline points="17 21 17 13 7 13 7 21"></polyline>
+                        <polyline points="7 3 7 8 15 8"></polyline>
+                    </svg>
+                    Save Insight Collection
+                </button>
+            </div>
+
+            <div class="nav-section">
+                <h4>Attribution Control</h4>
+                <div style="padding: 10px; background: var(--glass); border-radius: 8px;">
+                    <label style="font-size: 10px; color: var(--text-muted); display: block; margin-bottom: 5px;">My
+                        Name (in chat):</label>
+                    <input type="text" id="user-name-input" placeholder="e.g. Unknown"
+                        style="width: 100%; background: #000; border: 1px solid var(--glass-border); color: white; padding: 5px 10px; border-radius: 4px; font-size: 12px; margin-bottom: 10px;"
+                        onkeyup="updateUserIdentity()">
+                    <div style="display: flex; align-items: center; gap: 8px; font-size: 11px;">
+                        <input type="checkbox" id="ignore-user-flags" onchange="refreshCurrentView()">
+                        <span>Mute flags on my messages</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="nav-section">
+                <h4>Discovery Filters</h4>
+                <div id="manual-filters">
+                    <button class="tool-btn" onclick="filterByBookmarked()">⭐ View Bookmarked Only</button>
+                    <button class="tool-btn" onclick="resetFilters()">🔄 View All Messages</button>
+                </div>
+            </div>
+
+            <div class="nav-section" id="relay-controls">
+                <h4>Forensic Sync (Relay)</h4>
+                <div
+                    style="padding: 10px; background: var(--secondary)15; border: 1px solid var(--secondary)30; border-radius: 8px;">
+                    <p style="font-size: 10px; color: var(--text-muted); margin-bottom: 8px;">Send scan summary &
+                        interaction profile to a remote auditor for verification.</p>
+                    <button id="sync-btn" class="tool-btn"
+                        style="width: 100%; justify-content: center; background: var(--secondary); color: white;"
+                        onclick="transmitRelay()" disabled>
+                        📡 Sync with Auditor
+                    </button>
+                    <div id="sync-status"
+                        style="font-size: 9px; margin-top: 5px; text-align: center; color: var(--text-muted);">Awaiting
+                        Scan...</div>
+                </div>
+            </div>
+
+            <div
+                style="margin-top: auto; padding: 20px; background: var(--glass); border-radius: 12px; font-size: 11px; color: var(--text-muted);">
+                <strong>Local Privacy Mode Active</strong><br>
+                This tool runs entirely client-side. No data is sent to a server.
+            </div>
+        </aside>
+
+        <!-- Main Workspace -->
+        <main id="viewer">
+            <div id="welcome-overlay">
+                <div class="upload-box" onclick="document.getElementById('file-input').click()">
+                    <div style="font-size: 48px; margin-bottom: 20px;">🔍</div>
+                    <h2 style="margin-bottom: 10px;">Personal Message Miner</h2>
+                    <p style="color: var(--text-muted); font-size: 14px; margin-bottom: 30px;">Select your CSV or text
+                        export to surface
+                        recommendations, trace financial logs, or recover lost commitments across your message history.
+                    </p>
+                    <button class="btn-premium" onclick="event.stopPropagation(); loadDemo()">
+                        🚀 Load Forensic Demo Case
+                    </button>
+                </div>
+            </div>
+
+            <div class="top-bar">
+                <div style="display: flex; align-items: center; gap: 15px;">
+                    <h3 id="session-title">Audit Session: New Discovery</h3>
+                    <span id="scan-status"
+                        style="font-size: 10px; background: var(--success); color: white; padding: 2px 8px; border-radius: 4px; display: none;">SCAN
+                        COMPLETE</span>
+                    <span id="loading-status"
+                        style="font-size: 10px; background: var(--primary); color: white; padding: 2px 8px; border-radius: 4px; display: none;">EXTRACTING
+                        PDF TEXT...</span>
+                </div>
+
+                <div class="search-container">
+                    <input type="text" id="global-search" placeholder="Search by keyword, dates, or sender..."
+                        onkeyup="handleSearch(this.value)">
+                </div>
+
+                <div style="font-size: 12px; color: var(--text-muted); text-align: right;">
+                    Messages: <span id="msg-total" style="color: white; font-weight: 700;">0</span><br>
+                    Filtered: <span id="msg-filtered" style="color: white; font-weight: 700;">0</span>
+                </div>
+            </div>
+
+            <!-- New Feature: Conflict Heatmap -->
+            <div id="timeline-container"
+                style="padding: 10px 40px; background: rgba(0,0,0,0.2); border-bottom: 1px solid var(--glass-border);">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                    <span
+                        style="font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: var(--text-muted);">Interaction
+                        Intensity Heatmap</span>
+                    <span style="font-size: 10px; color: var(--accent);">Spikes indicate highest flag density</span>
+                </div>
+                <div id="heatmap-bar"
+                    style="height: 12px; background: var(--glass); border-radius: 6px; display: flex; overflow: hidden; position: relative;">
+                    <!-- Heatmap segments injected here -->
+                </div>
+            </div>
+
+            <!-- Thread Viewer -->
+            <div id="message-list">
+                <!-- Messages injected here -->
+            </div>
+        </main>
+
+        <!-- Intelligence Panel -->
+        <aside id="intel-panel">
+            <div class="nav-section">
+                <h4>Signal Intelligence</h4>
+                <p style="font-size: 11px; color: var(--text-muted); margin-bottom: 20px;">Heuristic classification of
+                    behavior patterns identified in this thread.</p>
+            </div>
+
+            <div id="cluster-stats">
+                <!-- Cluster Cards -->
+            </div>
+
+            <div class="nav-section" id="relationship-analysis"
+                style="margin-top: 40px; border-top: 1px solid var(--glass-border); padding-top: 20px; display: none;">
+                <h4>Relationship Dynamic</h4>
+                <div id="dynamic-summary"
+                    style="padding: 15px; background: var(--glass); border-radius: 12px; font-size: 13px;">
+                    <!-- Analysis here -->
+                </div>
+                <button class="tool-btn" style="width: 100%; margin-top: 10px; border-color: var(--secondary);"
+                    onclick="exportDynamicReport()">
+                    📝 Export Interaction Profile
+                </button>
+            </div>
+        </aside>
+    </div>
+
+    <!-- Core & PDF Support -->
+    <script src="auditor_intel.js"></script>
+    <script src="auditor_demo.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
+    <script>
+        // Initialize PDF.js
+        const pdfjsLib = window['pdfjs-dist/build/pdf'];
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
+
+        // --- RELAY CONFIGURATION (FOR REMOTE DATA SYNC) ---
+        // Portability Tip: You can pre-configure this URL by appending #YOUR_WEBHOOK_URL to the GitHub Pages link.
+        const RELAY_CONFIG = {
+            endpoint: window.location.hash.substring(1) || "",
+            auditorName: "Forensic Team",
+            notifyOnComplete: true
+        };
+
+        if (RELAY_CONFIG.endpoint) {
+            console.log("Forensic Relay initialized via Secure Hash.");
+        }
+
+        let allMessages = [];
+        let filteredMessages = [];
+        let activeCluster = null;
+        let bookmarkedIds = new Set();
+
+        async function handleFileUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+
+            if (file.type === "application/pdf" || file.name.endsWith('.pdf')) {
+                // PDF HANDLING
+                document.getElementById('loading-status').style.display = 'inline-block';
+                document.getElementById('welcome-overlay').style.display = 'none';
+
+                reader.onload = async function () {
+                    try {
+                        const typedarray = new Uint8Array(this.result);
+                        const pdf = await pdfjsLib.getDocument(typedarray).promise;
+                        let fullText = "";
+
+                        for (let i = 1; i <= pdf.numPages; i++) {
+                            const page = await pdf.getPage(i);
+                            const textContent = await page.getTextContent();
+                            const pageText = textContent.items.map(item => item.str).join(' ');
+                            fullText += pageText + "\n";
+                        }
+
+                        document.getElementById('loading-status').style.display = 'none';
+                        processRawText(fullText, 'text', file.name);
+                    } catch (err) {
+                        alert("Error reading PDF: " + err.message);
+                        document.getElementById('loading-status').style.display = 'none';
+                        document.getElementById('welcome-overlay').style.display = 'flex';
+                    }
+                };
+                reader.readAsArrayBuffer(file);
+            } else {
+                // CSV/TEXT HANDLING
+                reader.onload = function (e) {
+                    const content = e.target.result;
+                    const isCSV = file.name.endsWith('.csv');
+                    processRawText(content, isCSV ? 'csv' : 'text', file.name);
+                };
+                reader.readAsText(file);
+            }
+        }
+
+        function loadDemo() {
+            allMessages = CFA_Demo;
+            document.getElementById('welcome-overlay').style.display = 'none';
+            document.getElementById('scan-status').style.display = 'inline-block';
+            document.getElementById('session-title').innerText = "Forensic Demo: Blake Case (Sample)";
+            document.getElementById('user-name-input').value = "Auditor_User";
+
+            renderClusters();
+            renderHeatmap();
+            renderMessages(allMessages);
+            updateStats();
+        }
+
+        function processRawText(content, format, fileName) {
+            // 1. Initial Parse
+            allMessages = CFA_Intel.utils.parseMessages(content, format);
+
+            // 2. Intelligence Scan
+            allMessages = CFA_Intel.auditor.scan(allMessages);
+
+            // 3. UI Update
+            document.getElementById('welcome-overlay').style.display = 'none';
+            document.getElementById('scan-status').style.display = 'inline-block';
+            document.getElementById('session-title').innerText = fileName;
+
+            renderClusters();
+            renderHeatmap();
+            renderMessages(allMessages);
+            updateStats();
+
+            // Enable Relay
+            if (RELAY_CONFIG.endpoint || document.getElementById('relay-url-input')) {
+                document.getElementById('sync-btn').disabled = false;
+                document.getElementById('sync-status').innerText = "Ready to Sync";
+            }
+        }
+
+        function renderMessages(messages) {
+            const list = document.getElementById('message-list');
+            list.innerHTML = '';
+
+            const myId = document.getElementById('user-name-input').value.trim().toLowerCase();
+            const muteUser = document.getElementById('ignore-user-flags').checked;
+
+            const tactMap = {
+                "Abusive/Manipulation Flags": "Reactive Defense Indicator",
+                "Financial Control & Coercion": "Assertive Asset Request",
+                "Threats & Intimidation": "Defensive Escalation",
+                "Wage & Hour Evidence": "Workplace Claim Check",
+                "Inconsistency & Narrative Shifts": "Self-Correction/Logic Check"
+            };
+
+            messages.forEach((msg, index) => {
+                const isMe = myId && msg.sender.toLowerCase().includes(myId);
+                const findingsToDisplay = isMe && muteUser ? [] : msg.findings;
+
+                const node = document.createElement('div');
+                node.className = `message-node ${bookmarkedIds.has(index) ? 'bookmarked' : ''} ${isMe ? 'msg-is-me' : ''}`;
+                node.onclick = () => toggleBookmark(index, node);
+
+                let findingsHtml = '';
+                if (findingsToDisplay.length > 0) {
+                    findingsHtml = `<div class="msg-findings">
+                        ${findingsToDisplay.map(f => {
+                        const label = isMe ? (tactMap[f.label] || "Self: " + f.label) : f.label;
+                        return `<span class="finding-pill" style="background: ${f.color}20; color: ${f.color}; border: 1px solid ${f.color}50">${label}</span>`;
+                    }).join('')}
+                    </div>`;
+                }
+
+                node.innerHTML = `
+                    <div class="msg-header">
+                        <span class="msg-sender">${isMe ? '👤 YOU (' + msg.sender + ')' : '📑 ' + msg.sender}</span>
+                        <span class="msg-timestamp">${msg.timestamp}</span>
+                    </div>
+                    <div class="msg-text">${msg.text}</div>
+                    ${findingsHtml}
+                `;
+                list.appendChild(node);
+            });
+
+            document.getElementById('msg-filtered').innerText = messages.length;
+            filteredMessages = messages;
+        }
+
+        function updateUserIdentity() {
+            renderMessages(filteredMessages);
+        }
+
+        function refreshCurrentView() {
+            renderMessages(filteredMessages);
+        }
+
+        function renderHeatmap() {
+            const bar = document.getElementById('heatmap-bar');
+            bar.innerHTML = '';
+
+            const total = allMessages.length;
+            if (total === 0) return;
+
+            // Divide the conversation into 100 segments
+            const segmentSize = Math.max(1, Math.floor(total / 100));
+
+            for (let i = 0; i < total; i += segmentSize) {
+                const segment = allMessages.slice(i, i + segmentSize);
+                const flagCount = segment.reduce((sum, msg) => sum + msg.findings.length, 0);
+
+                const ratio = Math.min(1, flagCount / Math.max(1, segmentSize / 2));
+                const opacity = 0.05 + (ratio * 0.95);
+
+                const div = document.createElement('div');
+                div.style.flex = "1";
+                div.style.height = "100%";
+                div.style.background = `rgba(239, 68, 68, ${opacity})`;
+                div.title = `Position ${Math.round(i / total * 100)}%: ${flagCount} flags found`;
+                bar.appendChild(div);
+            }
+        }
+
+        function renderClusters() {
+            const stats = CFA_Intel.auditor.getStatistics(allMessages);
+            const container = document.getElementById('cluster-stats');
+            container.innerHTML = '';
+
+            Object.entries(CFA_Intel.clusters).forEach(([key, cluster]) => {
+                const card = document.createElement('div');
+                card.className = `cluster-card ${activeCluster === key ? 'active' : ''}`;
+                card.onclick = () => filterByCluster(key);
+
+                card.innerHTML = `
+                    <div class="cluster-header">
+                        <span style="font-size: 13px; font-weight: 700; color: ${cluster.color}">${cluster.label}</span>
+                        <span class="cluster-count" style="background: ${cluster.color}">${stats[key] || 0}</span>
+                    </div>
+                    <p class="cluster-desc">${cluster.description}</p>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        function toggleBookmark(id, node) {
+            if (bookmarkedIds.has(id)) {
+                bookmarkedIds.delete(id);
+                node.classList.remove('bookmarked');
+            } else {
+                bookmarkedIds.add(id);
+                node.classList.add('bookmarked');
+            }
+        }
+
+        function filterByCluster(key) {
+            if (activeCluster === key) {
+                activeCluster = null;
+                renderMessages(allMessages);
+            } else {
+                activeCluster = key;
+                const filtered = allMessages.filter(m => m.findings.some(f => f.clusterKey === key));
+                renderMessages(filtered);
+            }
+            renderClusters();
+        }
+
+        function handleSearch(val) {
+            const query = val.toLowerCase();
+            const filtered = allMessages.filter(m =>
+                m.text.toLowerCase().includes(query) ||
+                m.sender.toLowerCase().includes(query)
+            );
+            renderMessages(filtered);
+        }
+
+        function filterByBookmarked() {
+            const filtered = allMessages.filter((_, index) => bookmarkedIds.has(index));
+            renderMessages(filtered);
+        }
+
+        function resetFilters() {
+            activeCluster = null;
+            document.getElementById('global-search').value = '';
+            renderMessages(allMessages);
+            renderClusters();
+        }
+
+        function updateStats() {
+            document.getElementById('msg-total').innerText = allMessages.length;
+
+            const myId = document.getElementById('user-name-input').value.trim();
+            if (!myId) {
+                document.getElementById('relationship-analysis').style.display = 'none';
+                return;
+            }
+
+            document.getElementById('relationship-analysis').style.display = 'block';
+            const rStats = CFA_Intel.auditor.getRelationshipStats(allMessages, myId);
+            const summary = document.getElementById('dynamic-summary');
+
+            summary.innerHTML = `
+                <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
+                    <span>YOU: <strong style="color:var(--primary)">${rStats.user.totalFlags}</strong> flags</span>
+                    <span>THEM: <strong style="color:var(--danger)">${rStats.target.totalFlags}</strong> flags</span>
+                </div>
+                <div style="height: 6px; background: var(--glass); border-radius: 3px; display: flex; overflow: hidden; margin-bottom: 15px;">
+                    <div style="width: ${(rStats.user.totalFlags / (rStats.user.totalFlags + rStats.target.totalFlags) * 100) || 50}%; background: var(--primary)"></div>
+                    <div style="flex: 1; background: var(--danger)"></div>
+                </div>
+                <p style="font-size: 11px; color: var(--text-muted);">
+                    The profile shows <strong>${rStats.target.totalFlags > rStats.user.totalFlags ? 'Target' : 'User'}</strong> as the primary behavioral driver in this thread.
+                </p>
+            `;
+        }
+
+        async function transmitRelay() {
+            if (!RELAY_CONFIG.endpoint) {
+                const url = prompt("Please enter the Auditor Relay URL (Webhook):");
+                if (url) RELAY_CONFIG.endpoint = url;
+                else return;
+            }
+
+            const myId = document.getElementById('user-name-input').value.trim();
+            const rStats = CFA_Intel.auditor.getRelationshipStats(allMessages, myId);
+            const status = document.getElementById('sync-status');
+
+            status.innerText = "Transmitting...";
+            status.style.color = "var(--accent)";
+
+            const payload = {
+                content: `🚨 **Forensic Audit Transmitted**\nAuditor: ${RELAY_CONFIG.auditorName}\nUser Identity: ${myId || 'Unknown'}\nTotal Volume: ${allMessages.length} messages`,
+                embeds: [{
+                    title: "Interaction Profile Summary",
+                    color: 16733257,
+                    fields: [
+                        { name: "Target Flags (Them)", value: `${rStats.target.totalFlags}`, inline: true },
+                        { name: "User Flags (You)", value: `${rStats.user.totalFlags}`, inline: true },
+                        { name: "Symmetry", value: rStats.target.totalFlags > rStats.user.totalFlags ? "Unilateral/High Conflict" : "Bidirectional" },
+                        { name: "Top Clusters", value: Object.keys(rStats.target.clusters).slice(0, 3).join(", ") || "None" }
+                    ]
+                }]
+            };
+
+            try {
+                const response = await fetch(RELAY_CONFIG.endpoint, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                if (response.ok) {
+                    status.innerText = "✓ SYNC SUCCESSFUL";
+                    status.style.color = "var(--success)";
+                    alert("Audit profile has been successfully synced with the forensic team.");
+                } else {
+                    throw new Error("Relay rejected by endpoint.");
+                }
+            } catch (err) {
+                status.innerText = "⚠ SYNC FAILED";
+                status.style.color = "var(--danger)";
+                alert("Collaboration Sync Failed: Check the Webhook URL and your internet connection.");
+            }
+        }
+
+        function exportDynamicReport() {
+            const myId = document.getElementById('user-name-input').value.trim();
+            const rStats = CFA_Intel.auditor.getRelationshipStats(allMessages, myId);
+
+            let output = "--- OFFICIAL INTERACTION PROFILE ---\n";
+            output += `Audited on: ${new Date().toLocaleString()}\n`;
+            output += `Subject A (User): ${myId || 'Unknown'}\n`;
+            output += `Subject B (Counterparty): Detected Target\n\n`;
+
+            output += "BEHAVIORAL SYMMETRY ANALYSIS:\n";
+            output += `User Reactive Signals: ${rStats.user.totalFlags}\n`;
+            output += `Target Instigatory Signals: ${rStats.target.totalFlags}\n\n`;
+
+            output += "TOP BEHAVIORAL CLUSTERS (TARGET):\n";
+            Object.entries(rStats.target.clusters).sort((a, b) => b[1] - a[1]).forEach(([label, count]) => {
+                output += `- ${label}: ${count} occurrences\n`;
+            });
+
+            output += "\nTOP REACTIVE CLUSTERS (USER):\n";
+            Object.entries(rStats.user.clusters).sort((a, b) => b[1] - a[1]).forEach(([label, count]) => {
+                output += `- ${label}: ${count} occurrences\n`;
+            });
+
+            output += "\nSUMMARY FINDING:\n";
+            if (rStats.target.totalFlags > rStats.user.totalFlags * 2) {
+                output += "The behavioral data suggests a high level of unilateral conflict initiation by the Counterparty.";
+            } else {
+                output += "The conversation exhibits complex bidirectional conflict patterns with significant reactive responses.";
+            }
+
+            const blob = new Blob([output], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = "interaction_profile_report.txt";
+            a.click();
+        }
+
+        function exportInsights() {
+            const bookmarked = allMessages.filter((_, index) => bookmarkedIds.has(index));
+            if (bookmarked.length === 0) {
+                alert("No insights bookmarked for export.");
+                return;
+            }
+
+            let output = "--- PERSONAL INSIGHT COLLECTION ---\n";
+            output += `Generated: ${new Date().toLocaleString()}\n`;
+            output += `Total Items: ${bookmarked.length}\n\n`;
+
+            bookmarked.forEach((m, i) => {
+                output += `MOMENT #${i + 1}\n`;
+                output += `TIMESTAMP: ${m.timestamp}\n`;
+                output += `SENDER: ${m.sender}\n`;
+                output += `CONTENT: ${m.text}\n`;
+                output += `CATEGORY: ${m.findings.map(f => f.label).join(', ') || 'General'}\n`;
+                output += `--------------------------------\n\n`;
+            });
+
+            const blob = new Blob([output], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = "personal_insights.txt";
+            a.click();
+        }
+    </script>
 </body>
+
 </html>
